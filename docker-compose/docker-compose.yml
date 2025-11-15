@@ -1,0 +1,344 @@
+# 订单支付系统 Docker Compose 配置
+version: '3.8'
+
+services:
+  # PostgreSQL 数据库
+  postgres:
+    image: postgres:15
+    container_name: order-system-postgres
+    environment:
+      POSTGRES_DB: order_system
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8"
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - order-system-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Redis 缓存
+  redis:
+    image: redis:7-alpine
+    container_name: order-system-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - order-system-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # RabbitMQ 消息队列
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: order-system-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    ports:
+      - "5672:5672"
+      - "15672:15672"  # 管理界面
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - order-system-network
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Neo4j 图数据库 (用于知识图谱)
+  neo4j:
+    image: neo4j:5.14
+    container_name: order-system-neo4j
+    environment:
+      NEO4J_AUTH: neo4j/password
+      NEO4J_PLUGINS: '["apoc"]'
+      NEO4J_apoc_export_file_enabled: true
+      NEO4J_apoc_import_file_enabled: true
+    ports:
+      - "7474:7474"  # HTTP
+      - "7687:7687"  # Bolt
+    volumes:
+      - neo4j_data:/data
+      - neo4j_logs:/logs
+    networks:
+      - order-system-network
+    healthcheck:
+      test: ["CMD", "cypher-shell", "-u", "neo4j", "-p", "password", "RETURN 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Elasticsearch (用于全文搜索和日志分析)
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
+    container_name: order-system-elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    ports:
+      - "9200:9200"
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    networks:
+      - order-system-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Milvus Etcd (Milvus元数据存储)
+  etcd:
+    container_name: milvus-etcd
+    image: quay.io/coreos/etcd:v3.5.5
+    environment:
+      - ETCD_AUTO_COMPACTION_MODE=revision
+      - ETCD_AUTO_COMPACTION_RETENTION=1000
+      - ETCD_QUOTA_BACKEND_BYTES=4294967296
+      - ETCD_SNAPSHOT_COUNT=50000
+    volumes:
+      - etcd_data:/etcd
+    command: etcd -advertise-client-urls=http://127.0.0.1:2379 -listen-client-urls http://0.0.0.0:2379 --data-dir /etcd
+    networks:
+      - order-system-network
+    healthcheck:
+      test: ["CMD", "etcdctl", "endpoint", "health"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+
+  # Milvus MinIO (对象存储)
+  minio:
+    container_name: milvus-minio
+    image: minio/minio:RELEASE.2023-03-20T20-16-18Z
+    environment:
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+    ports:
+      - "9001:9001"
+      - "9000:9000"
+    volumes:
+      - minio_data:/minio_data
+    command: minio server /minio_data --console-address ":9001"
+    networks:
+      - order-system-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+
+  # Milvus 向量数据库
+  milvus-standalone:
+    container_name: milvus-standalone
+    image: milvusdb/milvus:v2.3.3
+    command: ["milvus", "run", "standalone"]
+    environment:
+      ETCD_ENDPOINTS: etcd:2379
+      MINIO_ADDRESS: minio:9000
+    volumes:
+      - milvus_data:/var/lib/milvus
+    ports:
+      - "19530:19530"  # gRPC端口
+      - "9091:9091"    # RESTful API端口
+    depends_on:
+      - "etcd"
+      - "minio"
+    networks:
+      - order-system-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9091/api/v1/health"]
+      interval: 30s
+      timeout: 20s
+      retries: 5
+
+  # 订单服务
+  order-service:
+    build:
+      context: ../order-service
+      dockerfile: docker/Dockerfile
+    container_name: order-service
+    environment:
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USERNAME=postgres
+      - DB_PASSWORD=password
+      - DB_DATABASE=order_system
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_PORT=5672
+      - AI_AGENT_SERVICE_URL=http://ai-agent-service:8004
+      - DEBUG=false
+    ports:
+      - "8001:8001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - order-system-network
+    restart: unless-stopped
+
+  # 支付服务
+  payment-service:
+    build:
+      context: ../payment-service
+      dockerfile: docker/Dockerfile
+    container_name: payment-service
+    environment:
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USERNAME=postgres
+      - DB_PASSWORD=password
+      - DB_DATABASE=order_system
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_PORT=5672
+      - ORDER_SERVICE_URL=http://order-service:8001
+      - AI_AGENT_SERVICE_URL=http://ai-agent-service:8004
+      - DEBUG=false
+    ports:
+      - "8002:8002"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - order-system-network
+    restart: unless-stopped
+
+  # 发货服务
+  shipping-service:
+    build:
+      context: ../shipping-service
+      dockerfile: docker/Dockerfile
+    container_name: shipping-service
+    environment:
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USERNAME=postgres
+      - DB_PASSWORD=password
+      - DB_DATABASE=order_system
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_PORT=5672
+      - ORDER_SERVICE_URL=http://order-service:8001
+      - AI_AGENT_SERVICE_URL=http://ai-agent-service:8004
+      - DEBUG=false
+    ports:
+      - "8003:8003"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - order-system-network
+    restart: unless-stopped
+
+  # AI Agent服务
+  ai-agent-service:
+    build:
+      context: ../ai-agent-service
+      dockerfile: docker/Dockerfile
+    container_name: ai-agent-service
+    environment:
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USERNAME=postgres
+      - DB_PASSWORD=password
+      - DB_DATABASE=order_system
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - NEO4J_HOST=neo4j
+      - NEO4J_PORT=7687
+      - NEO4J_USERNAME=neo4j
+      - NEO4J_PASSWORD=password
+      - ELASTICSEARCH_HOST=elasticsearch
+      - ELASTICSEARCH_PORT=9200
+      - MILVUS_HOST=milvus-standalone
+      - MILVUS_PORT=19530
+      - OPENAI_API_KEY=your-openai-api-key
+      - DEBUG=false
+    ports:
+      - "8004:8004"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      neo4j:
+        condition: service_healthy
+      elasticsearch:
+        condition: service_healthy
+      milvus-standalone:
+        condition: service_healthy
+    networks:
+      - order-system-network
+    restart: unless-stopped
+
+  # API网关
+  api-gateway:
+    build:
+      context: ../api-gateway
+      dockerfile: docker/Dockerfile
+    container_name: api-gateway
+    environment:
+      - ORDER_SERVICE_URL=http://order-service:8001
+      - PAYMENT_SERVICE_URL=http://payment-service:8002
+      - SHIPPING_SERVICE_URL=http://shipping-service:8003
+      - AI_AGENT_SERVICE_URL=http://ai-agent-service:8004
+      - JWT_SECRET_KEY=your-secret-key-here-change-in-production
+      - DEBUG=false
+    ports:
+      - "8000:8000"
+    depends_on:
+      - order-service
+      - payment-service
+      - shipping-service
+      - ai-agent-service
+    networks:
+      - order-system-network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  redis_data:
+  rabbitmq_data:
+  neo4j_data:
+  neo4j_logs:
+  elasticsearch_data:
+  etcd_data:
+  minio_data:
+  milvus_data:
+
+networks:
+  order-system-network:
+    driver: bridge

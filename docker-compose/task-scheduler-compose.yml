@@ -1,0 +1,73 @@
+version: '3.8'
+
+services:
+  # 定时任务服务
+  task-scheduler-service:
+    build:
+      context: ../task-scheduler-service
+      dockerfile: docker/Dockerfile
+    container_name: task-scheduler-service
+    ports:
+      - "8004:8004"
+    environment:
+      - DATABASE__HOST=postgres
+      - DATABASE__PORT=5432
+      - DATABASE__USERNAME=postgres
+      - DATABASE__PASSWORD=password
+      - DATABASE__DATABASE=order_payment_db
+      - REDIS__HOST=redis
+      - REDIS__PORT=6379
+      - THIRD_PARTY_API_URL=https://api.third-party.com
+      - THIRD_PARTY_API_KEY=your-api-key
+      - DEBUG=false
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - order-payment-network
+    volumes:
+      - ../shared:/app/shared:ro
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8004/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # PostgreSQL数据库
+  postgres:
+    image: postgres:15-alpine
+    container_name: task-postgres-db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: order_payment_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ../docker-compose/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    networks:
+      - order-payment-network
+    restart: unless-stopped
+
+  # Redis缓存
+  redis:
+    image: redis:7-alpine
+    container_name: task-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - order-payment-network
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  order-payment-network:
+    driver: bridge
