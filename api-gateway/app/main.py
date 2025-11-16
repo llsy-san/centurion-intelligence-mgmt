@@ -16,7 +16,7 @@ from config import GatewayConfig
 from utils import setup_logging, format_response, verify_token
 
 from .middleware import RateLimitMiddleware, LoggingMiddleware
-from .routers import gateway
+from .routers import gateway, files
 
 # 初始化配置和日志
 config = GatewayConfig()
@@ -49,6 +49,7 @@ security = HTTPBearer()
 
 # 包含路由
 app.include_router(gateway.router, prefix="/api/v1", tags=["gateway"])
+app.include_router(files.router, prefix="/api/v1", tags=["files"])
 
 
 async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):

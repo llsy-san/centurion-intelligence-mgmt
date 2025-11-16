@@ -1,10 +1,10 @@
 #!/bin/bash
 
-# 任务调度服务启动脚本
+# 订单服务启动脚本
 
 set -e
 
-echo "🚀 启动任务调度服务..."
+echo "🚀 启动订单服务..."
 
 # 检查依赖服务
 echo "检查依赖服务..."
@@ -20,9 +20,9 @@ if ! docker ps | grep -q centurion-redis; then
     sleep 3
 fi
 
-# 启动任务调度服务
-echo "启动任务调度服务..."
-docker compose up -d task-scheduler-service
+# 启动订单服务
+echo "启动订单服务..."
+docker compose up -d order-service
 
-echo "✅ 任务调度服务启动完成"
-echo "访问地址: http://localhost:8006"
+echo "✅ 订单服务启动完成"
+echo "访问地址: http://localhost:8002"
