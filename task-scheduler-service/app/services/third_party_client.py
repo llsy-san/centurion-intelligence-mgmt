@@ -1,69 +1,70 @@
+# -*- coding: utf-8 -*-
 """
-第三方系统客户端
-用于从第三方系统获取订单数据
+第三方API客户端
+模拟第三方系统的API调用
 """
-import httpx
+import aiohttp
 import asyncio
 from typing import List, Dict, Any, Optional
-from datetime import datetime, timedelta
-import sys
-import os
+from datetime import datetime
+import json
 
-sys.path.append(os.path.join(os.path.dirname(__file__), '../../../shared'))
-from utils import setup_logging
+from ..utils import setup_logging
 
 logger = setup_logging("third-party-client")
 
 
 class ThirdPartyClient:
-    """第三方系统客户端"""
+    """第三方API客户端"""
     
-    def __init__(self, base_url: str, api_key: str = None):
+    def __init__(self, base_url: str = "https://api.example.com"):
         self.base_url = base_url
-        self.api_key = api_key
-        self.client = httpx.AsyncClient(timeout=30.0)
+        self.session = None
+    
+    async def _get_session(self):
+        """获取HTTP会话"""
+        if self.session is None:
+            self.session = aiohttp.ClientSession(
+                timeout=aiohttp.ClientTimeout(total=30)
+            )
+        return self.session
     
     async def close(self):
-        """关闭客户端"""
-        await self.client.aclose()
+        """关闭HTTP会话"""
+        if self.session:
+            await self.session.close()
     
     async def get_order_list(self, start_date: datetime = None, end_date: datetime = None) -> List[Dict[str, Any]]:
         """
         获取订单列表
-        从第三方系统获取订单数据
+        模拟第三方API调用
         """
         try:
-            # 如果没有指定时间范围，默认获取最近7天的数据
-            if not start_date:
-                start_date = datetime.now() - timedelta(days=7)
-            if not end_date:
-                end_date = datetime.now()
+            # 模拟API调用延迟
+            await asyncio.sleep(0.1)
             
-            params = {
-                "start_date": start_date.strftime("%Y-%m-%d"),
-                "end_date": end_date.strftime("%Y-%m-%d"),
-                "page": 1,
-                "page_size": 1000
-            }
+            # 模拟返回数据
+            mock_orders = [
+                {
+                    "order_reference": "D20241101001",
+                    "create_time": "2024-11-01T10:00:00",
+                    "pay_status": "PAID",
+                    "pay_time": "2024-11-01T10:05:00",
+                    "pay_no": "S2520241101001",
+                    "id": "order_001"
+                },
+                {
+                    "order_reference": "D20241101002", 
+                    "create_time": "2024-11-01T11:00:00",
+                    "pay_status": "PAID",
+                    "pay_time": "2024-11-01T11:05:00",
+                    "pay_no": "S2520241101002",
+                    "id": "order_002"
+                }
+            ]
             
-            headers = {}
-            if self.api_key:
-                headers["Authorization"] = f"Bearer {self.api_key}"
-            
-            # 模拟第三方API调用
-            # 实际使用时需要替换为真实的API端点
-            url = f"{self.base_url}/api/orders/list"
-            
-            logger.info(f"正在获取订单列表，参数: {params}")
-            
-            response = await self.client.get(url, params=params, headers=headers)
-            response.raise_for_status()
-            
-            data = response.json()
-            orders = data.get("data", [])
-            
-            logger.info(f"成功获取 {len(orders)} 条订单数据")
-            return orders
+            logger.info(f"获取订单列表成功，共 {len(mock_orders)} 条记录")
+            return mock_orders
             
         except Exception as e:
             logger.error(f"获取订单列表失败: {str(e)}")
@@ -72,50 +73,70 @@ class ThirdPartyClient:
     async def get_order_detail(self, order_reference: str) -> Dict[str, Any]:
         """
         获取订单详情
-        根据订单编号获取详细信息
         """
         try:
-            url = f"{self.base_url}/api/orders/{order_reference}/detail"
+            await asyncio.sleep(0.05)
             
-            headers = {}
-            if self.api_key:
-                headers["Authorization"] = f"Bearer {self.api_key}"
+            # 模拟订单详情数据
+            mock_detail = {
+                "order_reference": order_reference,
+                "order_status": "COMPT",
+                "pay_time": "2024-11-01T10:05:00",
+                "total_amount": 100.00,
+                "refund_amount": 0.00,
+                "product_count": 1
+            }
             
-            logger.info(f"正在获取订单详情: {order_reference}")
-            
-            response = await self.client.get(url, headers=headers)
-            response.raise_for_status()
-            
-            data = response.json()
-            return data.get("data", {})
+            logger.debug(f"获取订单详情成功: {order_reference}")
+            return mock_detail
             
         except Exception as e:
             logger.error(f"获取订单详情失败 {order_reference}: {str(e)}")
             raise
     
+    async def get_wechat_pay_info(self, pay_no: str) -> Dict[str, Any]:
+        """
+        获取微信支付信息
+        """
+        try:
+            await asyncio.sleep(0.05)
+            
+            # 模拟微信支付信息
+            mock_pay_info = {
+                "pay_no": pay_no,
+                "customer_id": f"wx_customer_{pay_no[-3:]}",
+                "pay_method": "WECHAT",
+                "pay_status": "SUCCESS"
+            }
+            
+            logger.debug(f"获取微信支付信息成功: {pay_no}")
+            return mock_pay_info
+            
+        except Exception as e:
+            logger.error(f"获取微信支付信息失败 {pay_no}: {str(e)}")
+            raise
+    
     async def get_reconciliation_detail(self, order_reference: str) -> List[Dict[str, Any]]:
         """
         获取对账明细
-        从pw_reconciliation_amount_detail接口获取数据
         """
         try:
-            url = f"{self.base_url}/api/reconciliation/detail"
+            await asyncio.sleep(0.05)
             
-            params = {
-                "order_reference": order_reference
-            }
+            # 模拟对账明细数据
+            mock_details = [
+                {
+                    "order_detail_ind_reference": f"m{order_reference[1:]}001",
+                    "product_name": "南京夫子庙联票（有效期至2025年10月31日）",
+                    "create_time": "2024-11-01T10:00:00",
+                    "refund_way": 0,  # 0-未退款, 1-已退款, 2-部分退款
+                    "serial_number": "",
+                    "cause": ""
+                }
+            ]
             
-            headers = {}
-            if self.api_key:
-                headers["Authorization"] = f"Bearer {self.api_key}"
-            
-            logger.info(f"正在获取对账明细: {order_reference}")
-            
-            response = await self.client.get(url, params=params, headers=headers)
-            response.raise_for_status()
-            
-            data = response.json()
-            return data.get("data", [])
+            logger.debug(f"获取对账明细成功: {order_reference}")
+            return mock_details
             
         except Exception as e:
             logger.error(f"获取对账明细失败 {order_reference}: {str(e)}")
@@ -124,57 +145,29 @@ class ThirdPartyClient:
     async def get_check_record(self, external_no: str) -> Optional[Dict[str, Any]]:
         """
         获取核验记录
-        从check_record接口获取核验信息
         """
         try:
-            url = f"{self.base_url}/api/check/record"
+            await asyncio.sleep(0.05)
             
-            params = {
-                "external_no": external_no
-            }
-            
-            headers = {}
-            if self.api_key:
-                headers["Authorization"] = f"Bearer {self.api_key}"
-            
-            logger.info(f"正在获取核验记录: {external_no}")
-            
-            response = await self.client.get(url, params=params, headers=headers)
-            response.raise_for_status()
-            
-            data = response.json()
-            records = data.get("data", [])
-            
-            # 返回第一条记录，如果存在的话
-            return records[0] if records else None
-            
+            # 模拟核验记录（50%概率有核验记录）
+            if hash(external_no) % 2 == 0:
+                mock_record = {
+                    "external_no": external_no,
+                    "use_status": 1,  # 1-已使用, 0-未使用
+                    "device_name": "扫码机001",
+                    "tourist_phone": "138****1234",
+                    "create_time": "2024-11-01T14:30:00"
+                }
+                logger.debug(f"获取核验记录成功: {external_no}")
+                return mock_record
+            else:
+                logger.debug(f"未找到核验记录: {external_no}")
+                return None
+                
         except Exception as e:
             logger.error(f"获取核验记录失败 {external_no}: {str(e)}")
-            return None
-    
-    async def get_wechat_pay_info(self, pay_no: str) -> Optional[Dict[str, Any]]:
-        """
-        从微信支付平台获取支付信息
-        """
-        try:
-            # 这里应该调用微信支付API
-            # 暂时返回模拟数据
-            logger.info(f"正在从微信支付平台获取支付信息: {pay_no}")
-            
-            # 模拟数据
-            return {
-                "customer_id": "wx_openid_123456",
-                "apply_refund_amount": 0,
-                "actual_refund_amount": 0
-            }
-            
-        except Exception as e:
-            logger.error(f"获取微信支付信息失败 {pay_no}: {str(e)}")
-            return None
+            raise
 
 
 # 创建全局客户端实例
-third_party_client = ThirdPartyClient(
-    base_url="https://api.third-party.com",  # 替换为实际的第三方API地址
-    api_key="your-api-key"  # 替换为实际的API密钥
-)
+third_party_client = ThirdPartyClient()

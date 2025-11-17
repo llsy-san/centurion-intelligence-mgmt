@@ -8,26 +8,19 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sess
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
-from datetime import datetime
-import sys
-import os
 
-# 添加共享模块到路径
-sys.path.append(os.path.join(os.path.dirname(__file__), '../../shared'))
-
-from config import TaskSchedulerConfig
-
-# 初始化配置
-config = TaskSchedulerConfig()
+from .config import config
 
 # 创建异步数据库引擎
+# 确保使用正确的异步驱动
+database_url = config.database_url
+if not database_url.startswith("postgresql+asyncpg://"):
+    database_url = database_url.replace("postgresql://", "postgresql+asyncpg://")
+
 engine = create_async_engine(
-    config.database.url,
+    database_url,
     echo=config.debug,
-    pool_pre_ping=True,
-    pool_recycle=300,
-    pool_size=10,
-    max_overflow=20
+    future=True
 )
 
 # 创建异步会话工厂
@@ -36,6 +29,9 @@ AsyncSessionLocal = async_sessionmaker(
     class_=AsyncSession,
     expire_on_commit=False
 )
+
+# 别名供其他模块使用
+async_session = AsyncSessionLocal
 
 # 创建基础模型类
 Base = declarative_base()

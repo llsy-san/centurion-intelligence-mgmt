@@ -2,19 +2,15 @@
 Celery 任务管理路由
 提供类似 XXL-JOB 的管理界面 API
 """
-from fastapi import APIRouter, HTTPException, status, BackgroundTasks
-from typing import List, Dict, Any, Optional
+from fastapi import APIRouter, HTTPException, status
+from typing import Dict, Any, Optional
 from pydantic import BaseModel
 from datetime import datetime
-import sys
-import os
 
 from ..models import BaseResponse
-sys.path.append(os.path.join(os.path.dirname(__file__), '../../../shared'))
-from utils import format_response
-
-from ..celery_app import celery_app
-from .. import celery_tasks
+from ..utils import format_response
+from ..celery.celery_app import celery_app
+from ..celery import celery_tasks
 
 router = APIRouter()
 

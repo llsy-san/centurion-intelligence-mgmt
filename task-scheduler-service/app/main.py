@@ -8,11 +8,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
-# 添加共享模块到路径
-sys.path.append(os.path.join(os.path.dirname(__file__), '../../shared'))
-
-from config import TaskSchedulerConfig
-from utils import setup_logging, format_response
+from .config import config
+from .utils import setup_logging, format_response
 
 from .database import init_db
 from .routers.tasks import router as tasks_router
@@ -20,12 +17,12 @@ from .routers.sync import router as sync_router
 from .scheduler import start_scheduler, stop_scheduler
 
 # 初始化配置和日志
-config = TaskSchedulerConfig()
+# config 已经是实例，无需再次实例化
 logger = setup_logging("task-scheduler-service")
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(app):
     """应用生命周期管理"""
     # 启动时执行
     logger.info("定时任务服务启动中...")

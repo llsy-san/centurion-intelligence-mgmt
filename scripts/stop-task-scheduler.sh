@@ -1,34 +1,33 @@
 #!/bin/bash
 
-# 停止定时任务服务脚本
+# 停止任务调度服务脚本
+# 包含 FastAPI 服务和 Celery 任务队列的停止
 
 set -e
 
-echo "=========================================="
-echo "停止定时任务服务"
-echo "=========================================="
+echo "🛑 停止任务调度服务..."
 
-cd task-scheduler-service
-
-echo "检查Docker服务状态..."
-if command -v docker-compose &> /dev/null; then
-    if docker-compose ps | grep -q "task-scheduler-service"; then
-        echo "停止Docker服务..."
-        docker-compose down
-        echo "Docker服务已停止"
-    else
-        echo "Docker服务未运行"
-    fi
+# 停止容器内的 Celery 服务
+echo "停止 Celery 服务..."
+if docker ps | grep -q centurion-task-scheduler-service; then
+    docker exec centurion-task-scheduler-service pkill -f "celery.*worker" 2>/dev/null || true
+    docker exec centurion-task-scheduler-service pkill -f "celery.*beat" 2>/dev/null || true
+    docker exec centurion-task-scheduler-service pkill -f "celery.*flower" 2>/dev/null || true
+    echo "Celery 服务已停止"
 else
-    echo "Docker Compose 未安装，跳过Docker服务检查"
+    echo "任务调度服务容器未运行"
 fi
 
-echo ""
-echo "检查进程..."
-PIDS=$(ps aux | grep -E "(uvicorn|python.*main\.py)" | grep -v grep | awk '{print $2}' || true)
+# 停止任务调度服务容器
+echo "停止任务调度服务容器..."
+docker compose stop task-scheduler-service 2>/dev/null || true
+
+# 检查本地进程（如果有的话）
+echo "检查本地进程..."
+PIDS=$(ps aux | grep -E "(uvicorn.*task-scheduler|python.*main\.py|celery)" | grep -v grep | awk '{print $2}' || true)
 
 if [ -n "$PIDS" ]; then
-    echo "发现运行中的服务进程，正在停止..."
+    echo "发现运行中的本地进程，正在停止..."
     for PID in $PIDS; do
         echo "停止进程 $PID"
         kill -TERM $PID 2>/dev/null || true
@@ -38,7 +37,7 @@ if [ -n "$PIDS" ]; then
     sleep 3
     
     # 检查是否还有进程运行
-    REMAINING_PIDS=$(ps aux | grep -E "(uvicorn|python.*main\.py)" | grep -v grep | awk '{print $2}' || true)
+    REMAINING_PIDS=$(ps aux | grep -E "(uvicorn.*task-scheduler|python.*main\.py|celery)" | grep -v grep | awk '{print $2}' || true)
     if [ -n "$REMAINING_PIDS" ]; then
         echo "强制停止剩余进程..."
         for PID in $REMAINING_PIDS; do
@@ -46,12 +45,9 @@ if [ -n "$PIDS" ]; then
         done
     fi
     
-    echo "服务进程已停止"
+    echo "本地进程已停止"
 else
-    echo "未发现运行中的服务进程"
+    echo "未发现运行中的本地进程"
 fi
 
-echo ""
-echo "=========================================="
-echo "定时任务服务停止完成!"
-echo "=========================================="
+echo "✅ 任务调度服务已停止"

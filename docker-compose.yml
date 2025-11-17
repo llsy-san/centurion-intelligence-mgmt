@@ -127,6 +127,7 @@ services:
     container_name: centurion-task-scheduler-service
     ports:
       - "8006:8006"
+      - "5555:5555"  # Flower 监控界面端口
     environment:
       - DATABASE_URL=postgresql://postgres:centurion123@postgres:5432/centurion_db
       - REDIS_URL=redis://:centurion123@redis:6379

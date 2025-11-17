@@ -6,11 +6,7 @@ import asyncio
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 from datetime import datetime, timedelta
-import sys
-import os
-
-sys.path.append(os.path.join(os.path.dirname(__file__), '../../shared'))
-from utils import setup_logging
+from .utils import setup_logging
 
 from .services.sync_service import sync_service
 

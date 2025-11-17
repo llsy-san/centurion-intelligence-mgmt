@@ -23,6 +23,7 @@ help:
 	@echo "  make start-shipping - 启动物流服务"
 	@echo "  make start-ai       - 启动AI智能体"
 	@echo "  make start-task     - 启动任务调度"
+	@echo "  make monitor-task       - 查看任务调度服务状态"
 	@echo ""
 	@echo "停止服务命令:"
 	@echo "  make stop-api       - 停止API网关"
@@ -104,12 +105,23 @@ start-shipping:
 # 启动AI智能体
 start-ai:
 	@echo "🤖 启动AI智能体..."
-	@./scripts/start-ai-agent-service.sh
+	@./scripts/start-ai-service.sh
 
 # 启动任务调度
 start-task:
 	@echo "⏰ 启动任务调度..."
 	@./scripts/start-task-scheduler-service.sh
+
+monitor-task:
+	@echo "📊 任务调度服务监控:"
+	@echo "=== Docker 容器状态 ==="
+	@docker compose ps | grep task-scheduler
+	@echo ""
+	@echo "=== Celery 进程状态 ==="
+	@docker exec centurion-task-scheduler-service ps aux | grep -E "(celery|uvicorn)" | grep -v grep || true
+	@echo ""
+	@echo "=== 端口占用 ==="
+	@lsof -i :8006 -i :5555 || true
 
 # 停止API网关
 stop-api:

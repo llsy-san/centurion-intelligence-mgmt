@@ -37,6 +37,10 @@ class TaskSchedulerConfig(BaseSettings):
     third_party_api_url: str = "https://api.third-party.com"
     third_party_api_key: str = "your-api-key"
     
+    # Celery 配置
+    CELERY_BROKER_URL: str = "redis://:centurion123@redis:6379/0"
+    CELERY_RESULT_BACKEND: str = "redis://:centurion123@redis:6379/0"
+    
     # 日志配置
     log_level: str = "INFO"
     log_format: str = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
@@ -47,3 +51,10 @@ class TaskSchedulerConfig(BaseSettings):
 
 # 全局配置实例
 config = TaskSchedulerConfig()
+
+# 兼容性别名和函数
+Settings = TaskSchedulerConfig
+
+def get_settings():
+    """获取配置实例"""
+    return config

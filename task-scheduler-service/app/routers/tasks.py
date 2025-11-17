@@ -3,13 +3,9 @@
 """
 from fastapi import APIRouter, HTTPException, status
 from typing import List, Dict, Any
-import sys
-import os
 
 from ..models import BaseResponse
-sys.path.append(os.path.join(os.path.dirname(__file__), '../../../shared'))
-from utils import format_response
-
+from ..utils import format_response
 from ..scheduler import get_scheduler_status, sync_orders_job, sync_full_orders_job
 from ..services.sync_service import sync_service
 

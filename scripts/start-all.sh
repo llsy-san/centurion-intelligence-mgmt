@@ -13,11 +13,10 @@ fi
 
 # 构建并启动所有服务
 echo "🔨 构建 Docker 镜像..."
-cd docker-compose
-docker-compose build
+docker compose build
 
 echo "🚀 启动所有服务..."
-docker-compose up -d
+docker compose up -d
 
 # 等待服务启动
 echo "⏳ 等待服务启动..."
@@ -25,7 +24,7 @@ sleep 30
 
 # 检查服务状态
 echo "🔍 检查服务状态..."
-docker-compose ps
+docker compose ps
 
 echo ""
 echo "✅ 所有服务启动完成！"
@@ -45,5 +44,5 @@ echo ""
 echo "🔧 管理界面："
 echo "  - RabbitMQ管理: http://localhost:15672 (guest/guest)"
 echo ""
-echo "📊 查看日志: docker-compose logs -f"
-echo "🛑 停止服务: docker-compose down"
+echo "📊 查看日志: docker compose logs -f"
+echo "🛑 停止服务: docker compose down"

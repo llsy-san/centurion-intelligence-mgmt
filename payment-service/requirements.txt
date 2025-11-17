@@ -1,11 +1,26 @@
-fastapi==0.104.1
-uvicorn[standard]==0.24.0
-pydantic==2.5.0
-sqlalchemy[asyncio]==2.0.23
-asyncpg==0.29.0
-redis[hiredis]==4.6.0
-python-multipart==0.0.6
-celery[redis]==5.3.4
-httpx==0.25.2
-cryptography==41.0.7
-python-jose[cryptography]==3.3.0
+# ============================================
+# 支付服务依赖包
+# ============================================
+
+# Web框架和服务器
+fastapi==0.104.1                    # 现代高性能Web框架，支持异步和自动API文档
+uvicorn[standard]==0.24.0           # ASGI服务器，支持HTTP/2和WebSocket
+
+# 数据验证
+pydantic==2.5.0                     # 数据验证和序列化库
+
+# 数据库相关
+sqlalchemy[asyncio]==2.0.23         # Python SQL工具包和ORM，支持异步操作
+asyncpg==0.29.0                     # 高性能PostgreSQL异步驱动
+
+# 缓存和消息队列
+redis[hiredis]==4.6.0               # Redis客户端，包含高性能hiredis解析器
+celery[redis]==5.3.4                # 分布式任务队列，使用Redis作为broker
+
+# HTTP客户端和文件处理
+httpx==0.25.2                       # 现代异步HTTP客户端
+python-multipart==0.0.6             # 多部分表单数据解析（文件上传）
+
+# 安全和加密（支付安全必需）
+cryptography==41.0.7                # 加密库，支付数据加密和签名
+python-jose[cryptography]==3.3.0    # JWT和JWS实现，支持加密认证

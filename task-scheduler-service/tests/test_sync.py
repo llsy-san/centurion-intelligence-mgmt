@@ -5,14 +5,9 @@ import pytest
 import asyncio
 from datetime import datetime, timedelta
 from unittest.mock import AsyncMock, patch
-import sys
-import os
 
-sys.path.append(os.path.join(os.path.dirname(__file__), '../app'))
-sys.path.append(os.path.join(os.path.dirname(__file__), '../../shared'))
-
-from app.services.sync_service import SyncService
-from app.services.third_party_client import ThirdPartyClient
+from ..app.services.sync_service import SyncService
+from ..app.services.third_party_client import ThirdPartyClient
 
 
 @pytest.mark.asyncio
