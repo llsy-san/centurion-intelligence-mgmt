@@ -5,17 +5,12 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update
 from typing import Optional, Dict, Any
-from decimal import Decimal
 import httpx
 import asyncio
-import sys
-import os
 
 from .models import Payment, PaymentCreate, PaymentStatus
-# 添加共享模块到路径
-sys.path.append(os.path.join(os.path.dirname(__file__), '../../shared'))
-from config import PaymentServiceConfig
-from utils import generate_payment_id, setup_logging, calculate_signature
+from .config import PaymentServiceConfig
+from .utils import generate_payment_id, setup_logging, calculate_signature
 
 from .database import PaymentModel
 

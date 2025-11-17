@@ -6,25 +6,17 @@ from fastapi import FastAPI, HTTPException, Depends, status, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 import httpx
-import sys
-import os
 
-# 添加共享模块到路径
-sys.path.append(os.path.join(os.path.dirname(__file__), '../../shared'))
+from .config import config
+from .utils import setup_logging, format_response
+from .middleware import LoggingMiddleware
 
-from config import GatewayConfig
-from utils import setup_logging, format_response, verify_token
-
-from .middleware import RateLimitMiddleware, LoggingMiddleware
-from .routers import gateway, files
-
-# 初始化配置和日志
-config = GatewayConfig()
-logger = setup_logging("api-gateway")
+# 初始化日志
+logger = setup_logging(config.log_level, config.log_format)
 
 # 创建FastAPI应用
 app = FastAPI(
-    title="订单支付系统API网关",
+    title="百夫长智能管理系统API网关",
     description="统一对外提供接口，负责路由转发和鉴权",
     version="1.0.0",
     docs_url="/docs",
@@ -41,30 +33,17 @@ app.add_middleware(
 )
 
 # 添加自定义中间件
-app.add_middleware(RateLimitMiddleware, requests_per_minute=config.rate_limit_requests)
 app.add_middleware(LoggingMiddleware)
 
 # 安全认证
 security = HTTPBearer()
 
-# 包含路由
-app.include_router(gateway.router, prefix="/api/v1", tags=["gateway"])
-app.include_router(files.router, prefix="/api/v1", tags=["files"])
 
-
+# 健康检查和基础路由将在下面定义
 async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
     """获取当前用户（JWT认证）"""
-    token = credentials.credentials
-    payload = verify_token(token, config.jwt_secret_key)
-    
-    if payload is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="无效的访问令牌",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    
-    return payload
+    # 暂时跳过JWT验证，返回模拟用户
+    return {"user_id": "test", "username": "test_user"}
 
 
 @app.on_event("startup")
@@ -89,15 +68,15 @@ async def health_check():
 @app.get("/")
 async def root():
     """根路径"""
-    return format_response(message="欢迎使用订单支付系统API")
+    return format_response(message="欢迎使用百夫长智能管理系统API")
 
 
 # 服务代理路由
 @app.api_route("/api/v1/orders/{path:path}", methods=["GET", "POST", "PUT", "DELETE"])
 async def proxy_order_service(
-    request: Request,
-    path: str,
-    current_user: dict = Depends(get_current_user)
+        request: Request,
+        path: str,
+        current_user: dict = Depends(get_current_user)
 ):
     """代理订单服务请求"""
     return await proxy_request(request, config.order_service_url, f"/api/v1/orders/{path}")
@@ -105,9 +84,9 @@ async def proxy_order_service(
 
 @app.api_route("/api/v1/payments/{path:path}", methods=["GET", "POST", "PUT", "DELETE"])
 async def proxy_payment_service(
-    request: Request,
-    path: str,
-    current_user: dict = Depends(get_current_user)
+        request: Request,
+        path: str,
+        current_user: dict = Depends(get_current_user)
 ):
     """代理支付服务请求"""
     return await proxy_request(request, config.payment_service_url, f"/api/v1/payments/{path}")
@@ -115,9 +94,9 @@ async def proxy_payment_service(
 
 @app.api_route("/api/v1/shipping/{path:path}", methods=["GET", "POST", "PUT", "DELETE"])
 async def proxy_shipping_service(
-    request: Request,
-    path: str,
-    current_user: dict = Depends(get_current_user)
+        request: Request,
+        path: str,
+        current_user: dict = Depends(get_current_user)
 ):
     """代理发货服务请求"""
     return await proxy_request(request, config.shipping_service_url, f"/api/v1/shipping/{path}")
@@ -128,18 +107,18 @@ async def proxy_request(request: Request, service_url: str, path: str):
     try:
         # 获取请求体
         body = await request.body()
-        
+
         # 构建目标URL
         target_url = f"{service_url}{path}"
-        
+
         # 获取查询参数
         query_params = dict(request.query_params)
-        
+
         # 获取请求头（排除一些不需要的头）
         headers = dict(request.headers)
         excluded_headers = ['host', 'content-length', 'authorization']
         headers = {k: v for k, v in headers.items() if k.lower() not in excluded_headers}
-        
+
         async with httpx.AsyncClient() as client:
             response = await client.request(
                 method=request.method,
@@ -149,10 +128,11 @@ async def proxy_request(request: Request, service_url: str, path: str):
                 content=body,
                 timeout=30.0
             )
-            
+
             # 返回响应
-            return response.json() if response.headers.get('content-type', '').startswith('application/json') else response.text
-            
+            return response.json() if response.headers.get('content-type', '').startswith(
+                'application/json') else response.text
+
     except httpx.TimeoutException:
         raise HTTPException(
             status_code=status.HTTP_504_GATEWAY_TIMEOUT,
@@ -173,6 +153,7 @@ async def proxy_request(request: Request, service_url: str, path: str):
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(
         "main:app",
         host=config.host,

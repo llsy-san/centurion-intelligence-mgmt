@@ -9,7 +9,7 @@ from datetime import datetime
 from pathlib import Path
 import aiofiles
 
-from ..file_models import (
+from ..models import (
     FileInfo, FileListRequest, FileListResponse, StorageType, 
     FileCategory, FileServiceConfig, FileUploadRequest,
     FileDeleteRequest, BatchUploadRequest

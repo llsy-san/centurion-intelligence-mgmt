@@ -5,13 +5,8 @@ import pytest
 import asyncio
 from httpx import AsyncClient
 from fastapi.testclient import TestClient
-import sys
-import os
 
-# 添加应用模块到路径
-sys.path.append(os.path.join(os.path.dirname(__file__), '../app'))
-
-from models import OrderCreate, OrderItem
+from ..app.models import OrderItem, OrderCreate
 from decimal import Decimal
 
 

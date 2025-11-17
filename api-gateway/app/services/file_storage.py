@@ -20,7 +20,7 @@ try:
 except ImportError:
     magic = None
 
-from ..file_models import (
+from ..models import (
     FileInfo, StorageType, FileCategory, OSSConfig, 
     LocalStorageConfig, FileServiceConfig
 )

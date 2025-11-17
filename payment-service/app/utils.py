@@ -1,20 +1,12 @@
 """
-共享工具模块
-定义系统中各服务共用的工具函数
+支付服务工具模块
 """
 import uuid
 import hashlib
 import hmac
-import json
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Any, Dict, Optional
-from jose import JWTError, jwt
-from passlib.context import CryptContext
-
-
-# 密码加密上下文
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
 def generate_id() -> str:
@@ -22,57 +14,11 @@ def generate_id() -> str:
     return str(uuid.uuid4())
 
 
-def generate_order_number() -> str:
-    """生成订单号"""
-    timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
-    random_suffix = str(uuid.uuid4())[:8].upper()
-    return f"ORD{timestamp}{random_suffix}"
-
-
 def generate_payment_id() -> str:
     """生成支付ID"""
     timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
     random_suffix = str(uuid.uuid4())[:8].upper()
     return f"PAY{timestamp}{random_suffix}"
-
-
-def generate_shipping_id() -> str:
-    """生成发货ID"""
-    timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
-    random_suffix = str(uuid.uuid4())[:8].upper()
-    return f"SHP{timestamp}{random_suffix}"
-
-
-def hash_password(password: str) -> str:
-    """密码哈希"""
-    return pwd_context.hash(password)
-
-
-def verify_password(plain_password: str, hashed_password: str) -> bool:
-    """验证密码"""
-    return pwd_context.verify(plain_password, hashed_password)
-
-
-def create_access_token(data: Dict[str, Any], secret_key: str, expires_delta: Optional[timedelta] = None) -> str:
-    """创建JWT访问令牌"""
-    to_encode = data.copy()
-    if expires_delta:
-        expire = datetime.utcnow() + expires_delta
-    else:
-        expire = datetime.utcnow() + timedelta(minutes=15)
-    
-    to_encode.update({"exp": expire})
-    encoded_jwt = jwt.encode(to_encode, secret_key, algorithm="HS256")
-    return encoded_jwt
-
-
-def verify_token(token: str, secret_key: str) -> Optional[Dict[str, Any]]:
-    """验证JWT令牌"""
-    try:
-        payload = jwt.decode(token, secret_key, algorithms=["HS256"])
-        return payload
-    except JWTError:
-        return None
 
 
 def calculate_signature(data: Dict[str, Any], secret_key: str) -> str:
@@ -114,7 +60,7 @@ def setup_logging(service_name: str, level: str = "INFO") -> logging.Logger:
     return logger
 
 
-def format_response(success: bool = True, message: str = "操作成功", data: Any = None, error_code: str = None) -> Dict[str, Any]:
+def format_response(success: bool = True, message: str = "操作成功", data: Any = None, error_code: Optional[str] = None) -> Dict[str, Any]:
     """格式化响应"""
     response = {
         "success": success,

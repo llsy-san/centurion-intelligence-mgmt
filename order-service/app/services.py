@@ -6,20 +6,11 @@ from datetime import datetime
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update
-from sqlalchemy.orm import selectinload
 from typing import List, Optional
-from decimal import Decimal
-import httpx
-import json
-import sys
-import os
 
 from .models import Order, OrderCreate, OrderStatus, OrderItem
-# 添加共享模块到路径
-sys.path.append(os.path.join(os.path.dirname(__file__), '../../shared'))
-from config import OrderServiceConfig
-from utils import generate_order_number, setup_logging
-
+from .config import OrderServiceConfig
+from .utils import generate_order_number, setup_logging
 from .database import OrderModel
 
 # 初始化配置和日志

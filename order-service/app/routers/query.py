@@ -6,15 +6,9 @@ from fastapi import APIRouter, HTTPException, status, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, or_, func, desc, text
 from typing import List, Dict, Any, Optional
-from datetime import datetime, timedelta
-import sys
-import os
 
-sys.path.append(os.path.join(os.path.dirname(__file__), '../../../shared'))
 from ..models import BaseResponse
-sys.path.append(os.path.join(os.path.dirname(__file__), '../../../shared'))
-from utils import format_response
-
+from ..utils import format_response
 from ..database import get_db
 
 router = APIRouter()

@@ -43,6 +43,7 @@ numpy~=2.0.2
 pymilvus~=2.6.3
 
 # 文件上传下载
-aiofiles==23.2.1
-oss2==2.18.4
+aiofiles~=25.1.0
+oss2~=2.19.1
 python-magic==0.4.27
+apscheduler~=3.11.1

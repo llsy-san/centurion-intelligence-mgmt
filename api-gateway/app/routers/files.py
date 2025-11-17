@@ -2,17 +2,17 @@
 文件管理API路由
 """
 from typing import List, Optional
-from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Depends, Query
-from fastapi.responses import StreamingResponse, JSONResponse
+from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Query
+from fastapi.responses import StreamingResponse
 import io
 
-from ..file_models import (
+from ..models import (
     FileUploadRequest, FileListRequest, FileListResponse,
     FileDeleteRequest, BatchUploadRequest, FileOperationResponse,
     StorageType, FileCategory, FileInfo
 )
 from ..services.file_manager import FileManager
-from ..config.file_config import file_service_config
+from ..config import file_service_config
 
 router = APIRouter(prefix="/files", tags=["文件管理"])
 

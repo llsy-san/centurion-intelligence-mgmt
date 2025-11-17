@@ -4,15 +4,9 @@
 """
 from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
-import sys
-import os
 
 from ..models import Payment, PaymentCreate, PaymentStatus, BaseResponse
-import sys
-import os
-sys.path.append(os.path.join(os.path.dirname(__file__), '../../../shared'))
-from utils import format_response
-
+from ..utils import format_response
 from ..database import get_db
 from ..services import PaymentService
 

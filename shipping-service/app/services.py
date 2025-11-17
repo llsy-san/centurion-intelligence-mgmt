@@ -20,13 +20,13 @@ import os
 
 from .models import (
     Shipping, ShippingCreate, ShippingStatus, 
-    UserAsset, UserAssetCreate, AssetType, AssetStatus,
+    UserAsset, AssetType, AssetStatus,
     OrderItem
 )
 # 添加共享模块到路径
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../shared'))
-from config import ShippingServiceConfig
-from utils import generate_shipping_id, setup_logging
+from .config import ShippingServiceConfig
+from .utils import generate_shipping_id, setup_logging
 
 from .database import ShippingModel, UserAssetModel
 

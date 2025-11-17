@@ -5,15 +5,9 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List, Optional
-import sys
-import os
 
 from ..models import UserAsset, AssetType, BaseResponse
-import sys
-import os
-sys.path.append(os.path.join(os.path.dirname(__file__), '../../../shared'))
-from utils import format_response
-
+from ..utils import format_response
 from ..database import get_db
 from ..services import UserAssetService
 

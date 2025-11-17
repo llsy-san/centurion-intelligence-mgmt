@@ -8,15 +8,8 @@ from collections import defaultdict, deque
 from fastapi import Request, Response, HTTPException, status
 from starlette.middleware.base import BaseHTTPMiddleware
 from typing import Dict, Deque
-import sys
-import os
 
-# 添加共享模块到路径
-sys.path.append(os.path.join(os.path.dirname(__file__), '../../shared'))
-
-from utils import setup_logging
-
-logger = setup_logging("api-gateway-middleware")
+logger = logging.getLogger("api-gateway-middleware")
 
 
 class RateLimitMiddleware(BaseHTTPMiddleware):

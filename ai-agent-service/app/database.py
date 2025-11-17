@@ -7,25 +7,13 @@ from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.sql import func
-import sys
-import os
 import uuid
 
-# 添加共享模块到路径
-sys.path.append(os.path.join(os.path.dirname(__file__), '../../shared'))
-
-from config import ServiceConfig
-
-# AI Agent服务配置
-class AIAgentServiceConfig(ServiceConfig):
-    service_name: str = "ai-agent-service"
-    port: int = 8004
-
-config = AIAgentServiceConfig()
+from .config import config
 
 # 创建异步数据库引擎
 engine = create_async_engine(
-    config.database.url,
+    config.database_url,
     echo=config.debug,
     pool_pre_ping=True,
     pool_recycle=300,

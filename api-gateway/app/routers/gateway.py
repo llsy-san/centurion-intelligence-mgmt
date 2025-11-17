@@ -12,8 +12,8 @@ import os
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../../shared'))
 
 from ..models import BaseResponse
-from config import GatewayConfig
-from utils import format_response, create_access_token, verify_token, hash_password, verify_password
+from ..config import GatewayConfig
+from ..utils import format_response, create_access_token, verify_token, hash_password, verify_password
 
 router = APIRouter()
 security = HTTPBearer()
@@ -103,7 +103,7 @@ async def get_system_info():
     return format_response(
         message="获取系统信息成功",
         data={
-            "system_name": "订单支付系统",
+            "system_name": "百夫长智能管理系统",
             "version": "1.0.0",
             "services": {
                 "order_service": config.order_service_url,

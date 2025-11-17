@@ -2,16 +2,9 @@
 支付服务测试
 """
 import pytest
-import asyncio
 from decimal import Decimal
-import sys
-import os
 
-# 添加共享模块到路径
-sys.path.append(os.path.join(os.path.dirname(__file__), '../../shared'))
-
-sys.path.append(os.path.join(os.path.dirname(__file__), '../app'))
-from models import PaymentCreate, PaymentStatus
+from ..app.models import PaymentCreate, PaymentStatus
 
 
 @pytest.fixture

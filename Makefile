@@ -23,6 +23,15 @@ help:
 	@echo "  make start-shipping - 启动物流服务"
 	@echo "  make start-ai       - 启动AI智能体"
 	@echo "  make start-task     - 启动任务调度"
+	@echo ""
+	@echo "停止服务命令:"
+	@echo "  make stop-api       - 停止API网关"
+	@echo "  make stop-order     - 停止订单服务"
+	@echo "  make stop-payment   - 停止支付服务"
+	@echo "  make stop-shipping  - 停止物流服务"
+	@echo "  make stop-ai        - 停止AI智能体"
+	@echo "  make stop-task      - 停止任务调度"
+	@echo "  make stop-all       - 停止所有服务"
 
 # 启动所有服务
 start:
@@ -101,3 +110,38 @@ start-ai:
 start-task:
 	@echo "⏰ 启动任务调度..."
 	@./scripts/start-task-scheduler-service.sh
+
+# 停止API网关
+stop-api:
+	@echo "🛑 停止API网关..."
+	@./scripts/stop-api-gateway.sh
+
+# 停止订单服务
+stop-order:
+	@echo "🛑 停止订单服务..."
+	@./scripts/stop-order-service.sh
+
+# 停止支付服务
+stop-payment:
+	@echo "🛑 停止支付服务..."
+	@./scripts/stop-payment-service.sh
+
+# 停止物流服务
+stop-shipping:
+	@echo "🛑 停止物流服务..."
+	@./scripts/stop-shipping-service.sh
+
+# 停止AI智能体
+stop-ai:
+	@echo "🛑 停止AI智能体..."
+	@./scripts/stop-ai-service.sh
+
+# 停止任务调度
+stop-task:
+	@echo "🛑 停止任务调度..."
+	@./scripts/stop-task-scheduler.sh
+
+# 停止所有服务
+stop-all:
+	@echo "🛑 停止所有服务..."
+	@./scripts/stop-all.sh

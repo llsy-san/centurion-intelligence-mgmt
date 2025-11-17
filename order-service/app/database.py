@@ -7,14 +7,8 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.sql import func
-from datetime import datetime
-import sys
-import os
 
-# 添加共享模块到路径
-sys.path.append(os.path.join(os.path.dirname(__file__), '../../shared'))
-
-from config import OrderServiceConfig
+from .config import OrderServiceConfig
 
 # 初始化配置
 config = OrderServiceConfig()

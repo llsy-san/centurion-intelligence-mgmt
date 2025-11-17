@@ -1,422 +1,146 @@
-version: '3.8'
-
-# 百夫长智能管理系统 - 统一部署配置
-# 包含所有服务：基础设施、业务服务、AI服务、文件服务、任务调度
+# 百夫长智能管理系统
 
 services:
-  # ================================
-  # 基础设施服务
-  # ================================
-  
-  # PostgreSQL 主数据库
+  # PostgreSQL 数据库
   postgres:
-    image: postgres:15-alpine
+    image: postgres:15
     container_name: centurion-postgres
     environment:
       POSTGRES_DB: centurion_db
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-centurion123}
-      POSTGRES_INITDB_ARGS: "--encoding=UTF-8"
+      POSTGRES_PASSWORD: centurion123
     ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+      - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./docker-compose/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
     networks:
       - centurion-network
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-    restart: unless-stopped
 
-  # Redis 缓存和消息队列
+  # Redis 缓存
   redis:
     image: redis:7-alpine
     container_name: centurion-redis
+    command: redis-server --requirepass centurion123
     ports:
-      - "${REDIS_PORT:-6379}:6379"
+      - "6379:6379"
     volumes:
       - redis_data:/data
     networks:
       - centurion-network
-    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-centurion123}
-    healthcheck:
-      test: ["CMD", "redis-cli", "--no-auth-warning", "-a", "${REDIS_PASSWORD:-centurion123}", "ping"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-    restart: unless-stopped
 
-  # MinIO 对象存储（文件服务）
+  # MinIO 文件存储
   minio:
     image: minio/minio:latest
     container_name: centurion-minio
-    ports:
-      - "${MINIO_API_PORT:-9000}:9000"
-      - "${MINIO_CONSOLE_PORT:-9001}:9001"
+    command: server /data --console-address ":9001"
     environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin123}
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin123
+    ports:
+      - "9000:9000"
+      - "9001:9001"
     volumes:
       - minio_data:/data
-    command: server /data --console-address ":9001"
     networks:
       - centurion-network
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
-      interval: 30s
-      timeout: 20s
-      retries: 3
-    restart: unless-stopped
 
-  # Elasticsearch (可选 - 用于日志分析)
-  elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
-    container_name: centurion-elasticsearch
-    environment:
-      - discovery.type=single-node
-      - xpack.security.enabled=false
-      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
-    ports:
-      - "${ELASTICSEARCH_PORT:-9200}:9200"
-    volumes:
-      - elasticsearch_data:/usr/share/elasticsearch/data
-    networks:
-      - centurion-network
-    healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-    restart: unless-stopped
-    profiles: ["full", "logging"]
-
-  # ================================
-  # 业务服务
-  # ================================
-
-  # API网关
+  # API 网关
   api-gateway:
-    build:
-      context: ../api-gateway
-      dockerfile: docker/Dockerfile
+    build: ./api-gateway
     container_name: centurion-api-gateway
-    environment:
-      # 服务发现
-      - ORDER_SERVICE_URL=http://order-service:8002
-      - PAYMENT_SERVICE_URL=http://payment-service:8003
-      - SHIPPING_SERVICE_URL=http://shipping-service:8004
-      - AI_AGENT_SERVICE_URL=http://ai-agent-service:8005
-      - TASK_SCHEDULER_SERVICE_URL=http://task-scheduler-service:8006
-      
-      # 安全配置
-      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-your-secret-key-change-in-production}
-      - JWT_ALGORITHM=HS256
-      - JWT_ACCESS_TOKEN_EXPIRE_MINUTES=30
-      
-      # 文件服务配置
-      - FILE_DEFAULT_STORAGE=${FILE_DEFAULT_STORAGE:-local}
-      - FILE_LOCAL_BASE_PATH=/app/uploads
-      - FILE_LOCAL_BASE_URL=http://localhost:8001/api/v1/files/static
-      - FILE_MAX_SIZE=${FILE_MAX_SIZE:-10485760}
-      - FILE_ALLOWED_EXTENSIONS=.jpg,.jpeg,.png,.gif,.pdf,.doc,.docx,.txt,.zip,.mp4,.mp3
-      
-      # OSS配置（可选）
-      - OSS_ACCESS_KEY_ID=${OSS_ACCESS_KEY_ID:-}
-      - OSS_ACCESS_KEY_SECRET=${OSS_ACCESS_KEY_SECRET:-}
-      - OSS_ENDPOINT=${OSS_ENDPOINT:-}
-      - OSS_BUCKET_NAME=${OSS_BUCKET_NAME:-}
-      
-      # 其他配置
-      - DEBUG=${DEBUG:-false}
-      - LOG_LEVEL=${LOG_LEVEL:-INFO}
     ports:
-      - "${API_GATEWAY_PORT:-8001}:8001"
-    volumes:
-      - file_uploads:/app/uploads
-      - file_thumbnails:/app/thumbnails
+      - "8001:8001"
+    environment:
+      - DATABASE_URL=postgresql://postgres:centurion123@postgres:5432/centurion_db
+      - REDIS_URL=redis://:centurion123@redis:6379
     depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
+      - postgres
+      - redis
     networks:
       - centurion-network
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
 
   # 订单服务
   order-service:
-    build:
-      context: ../order-service
-      dockerfile: docker/Dockerfile
+    build: ./order-service
     container_name: centurion-order-service
-    environment:
-      - DATABASE_URL=postgresql+asyncpg://postgres:${POSTGRES_PASSWORD:-centurion123}@postgres:5432/centurion_db
-      - REDIS_URL=redis://:${REDIS_PASSWORD:-centurion123}@redis:6379/0
-      - AI_AGENT_SERVICE_URL=http://ai-agent-service:8005
-      - DEBUG=${DEBUG:-false}
-      - LOG_LEVEL=${LOG_LEVEL:-INFO}
     ports:
-      - "${ORDER_SERVICE_PORT:-8002}:8002"
+      - "8002:8002"
+    environment:
+      - DATABASE_URL=postgresql://postgres:centurion123@postgres:5432/centurion_db
+      - REDIS_URL=redis://:centurion123@redis:6379
     depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
+      - postgres
+      - redis
     networks:
       - centurion-network
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8002/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
 
   # 支付服务
   payment-service:
-    build:
-      context: ../payment-service
-      dockerfile: docker/Dockerfile
+    build: ./payment-service
     container_name: centurion-payment-service
-    environment:
-      - DATABASE_URL=postgresql+asyncpg://postgres:${POSTGRES_PASSWORD:-centurion123}@postgres:5432/centurion_db
-      - REDIS_URL=redis://:${REDIS_PASSWORD:-centurion123}@redis:6379/1
-      - ORDER_SERVICE_URL=http://order-service:8002
-      - AI_AGENT_SERVICE_URL=http://ai-agent-service:8005
-      - DEBUG=${DEBUG:-false}
-      - LOG_LEVEL=${LOG_LEVEL:-INFO}
     ports:
-      - "${PAYMENT_SERVICE_PORT:-8003}:8003"
+      - "8003:8003"
+    environment:
+      - DATABASE_URL=postgresql://postgres:centurion123@postgres:5432/centurion_db
+      - REDIS_URL=redis://:centurion123@redis:6379
     depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
+      - postgres
+      - redis
     networks:
       - centurion-network
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8003/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
 
   # 物流服务
   shipping-service:
-    build:
-      context: ../shipping-service
-      dockerfile: docker/Dockerfile
+    build: ./shipping-service
     container_name: centurion-shipping-service
-    environment:
-      - DATABASE_URL=postgresql+asyncpg://postgres:${POSTGRES_PASSWORD:-centurion123}@postgres:5432/centurion_db
-      - REDIS_URL=redis://:${REDIS_PASSWORD:-centurion123}@redis:6379/2
-      - ORDER_SERVICE_URL=http://order-service:8002
-      - AI_AGENT_SERVICE_URL=http://ai-agent-service:8005
-      - DEBUG=${DEBUG:-false}
-      - LOG_LEVEL=${LOG_LEVEL:-INFO}
     ports:
-      - "${SHIPPING_SERVICE_PORT:-8004}:8004"
+      - "8004:8004"
+    environment:
+      - DATABASE_URL=postgresql://postgres:centurion123@postgres:5432/centurion_db
+      - REDIS_URL=redis://:centurion123@redis:6379
     depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
+      - postgres
+      - redis
     networks:
       - centurion-network
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8004/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
 
-  # AI智能体服务
+  # AI 智能体服务
   ai-agent-service:
-    build:
-      context: ../ai-agent-service
-      dockerfile: docker/Dockerfile
+    build: ./ai-agent-service
     container_name: centurion-ai-agent-service
-    environment:
-      - DATABASE_URL=postgresql+asyncpg://postgres:${POSTGRES_PASSWORD:-centurion123}@postgres:5432/centurion_db
-      - REDIS_URL=redis://:${REDIS_PASSWORD:-centurion123}@redis:6379/3
-      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
-      - OPENAI_API_BASE=${OPENAI_API_BASE:-https://api.openai.com/v1}
-      - DEBUG=${DEBUG:-false}
-      - LOG_LEVEL=${LOG_LEVEL:-INFO}
     ports:
-      - "${AI_AGENT_SERVICE_PORT:-8005}:8005"
+      - "8005:8005"
+    environment:
+      - DATABASE_URL=postgresql://postgres:centurion123@postgres:5432/centurion_db
+      - REDIS_URL=redis://:centurion123@redis:6379
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-your-openai-api-key}
     depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
+      - postgres
+      - redis
     networks:
       - centurion-network
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8005/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
 
   # 任务调度服务
   task-scheduler-service:
-    build:
-      context: ../task-scheduler-service
-      dockerfile: docker/Dockerfile
+    build: ./task-scheduler-service
     container_name: centurion-task-scheduler-service
-    environment:
-      - DATABASE_URL=postgresql+asyncpg://postgres:${POSTGRES_PASSWORD:-centurion123}@postgres:5432/centurion_db
-      - REDIS_URL=redis://:${REDIS_PASSWORD:-centurion123}@redis:6379/4
-      - DEBUG=${DEBUG:-false}
-      - LOG_LEVEL=${LOG_LEVEL:-INFO}
     ports:
-      - "${TASK_SCHEDULER_SERVICE_PORT:-8006}:8006"
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    networks:
-      - centurion-network
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8006/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-
-  # ================================
-  # Celery 任务队列
-  # ================================
-
-  # Celery Worker
-  celery-worker:
-    build:
-      context: ../task-scheduler-service
-      dockerfile: docker/Dockerfile
-    container_name: centurion-celery-worker
-    command: celery -A celery_app worker --loglevel=info --concurrency=4
+      - "8006:8006"
     environment:
-      - DATABASE_URL=postgresql+asyncpg://postgres:${POSTGRES_PASSWORD:-centurion123}@postgres:5432/centurion_db
-      - REDIS_URL=redis://:${REDIS_PASSWORD:-centurion123}@redis:6379/4
-      - DEBUG=${DEBUG:-false}
+      - DATABASE_URL=postgresql://postgres:centurion123@postgres:5432/centurion_db
+      - REDIS_URL=redis://:centurion123@redis:6379
     depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
+      - postgres
+      - redis
     networks:
       - centurion-network
-    restart: unless-stopped
-    profiles: ["full", "celery"]
-
-  # Celery Beat (定时任务调度器)
-  celery-beat:
-    build:
-      context: ../task-scheduler-service
-      dockerfile: docker/Dockerfile
-    container_name: centurion-celery-beat
-    command: celery -A celery_app beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler
-    environment:
-      - DATABASE_URL=postgresql+asyncpg://postgres:${POSTGRES_PASSWORD:-centurion123}@postgres:5432/centurion_db
-      - REDIS_URL=redis://:${REDIS_PASSWORD:-centurion123}@redis:6379/4
-      - DEBUG=${DEBUG:-false}
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    networks:
-      - centurion-network
-    restart: unless-stopped
-    profiles: ["full", "celery"]
-
-  # Flower (Celery监控)
-  flower:
-    build:
-      context: ../task-scheduler-service
-      dockerfile: docker/Dockerfile
-    container_name: centurion-flower
-    command: celery -A celery_app flower --port=5555
-    environment:
-      - DATABASE_URL=postgresql+asyncpg://postgres:${POSTGRES_PASSWORD:-centurion123}@postgres:5432/centurion_db
-      - REDIS_URL=redis://:${REDIS_PASSWORD:-centurion123}@redis:6379/4
-    ports:
-      - "${FLOWER_PORT:-5555}:5555"
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    networks:
-      - centurion-network
-    restart: unless-stopped
-    profiles: ["full", "celery", "monitoring"]
-
-  # ================================
-  # 监控服务 (可选)
-  # ================================
-
-  # Prometheus (指标收集)
-  prometheus:
-    image: prom/prometheus:latest
-    container_name: centurion-prometheus
-    ports:
-      - "${PROMETHEUS_PORT:-9090}:9090"
-    volumes:
-      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
-      - prometheus_data:/prometheus
-    networks:
-      - centurion-network
-    restart: unless-stopped
-    profiles: ["full", "monitoring"]
-
-  # Grafana (指标可视化)
-  grafana:
-    image: grafana/grafana:latest
-    container_name: centurion-grafana
-    ports:
-      - "${GRAFANA_PORT:-3000}:3000"
-    environment:
-      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin123}
-    volumes:
-      - grafana_data:/var/lib/grafana
-      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards
-      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources
-    networks:
-      - centurion-network
-    restart: unless-stopped
-    profiles: ["full", "monitoring"]
 
 volumes:
   postgres_data:
-    driver: local
   redis_data:
-    driver: local
   minio_data:
-    driver: local
-  elasticsearch_data:
-    driver: local
-  file_uploads:
-    driver: local
-  file_thumbnails:
-    driver: local
-  prometheus_data:
-    driver: local
-  grafana_data:
-    driver: local
 
 networks:
   centurion-network:
     driver: bridge
-    ipam:
-      config:
-        - subnet: 172.20.0.0/16

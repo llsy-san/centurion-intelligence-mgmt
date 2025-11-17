@@ -7,7 +7,7 @@ from typing import List, Dict, Any
 from pydantic import BaseModel
 
 from ..database import get_db
-from ..services import VectorSearchService
+from ..services import MilvusVectorSearchService
 
 router = APIRouter()
 

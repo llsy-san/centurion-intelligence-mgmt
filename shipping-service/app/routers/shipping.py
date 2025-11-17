@@ -5,18 +5,13 @@
 from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List, Dict, Any, Optional
-import sys
-import os
 
 from ..models import (
     Shipping, ShippingCreate, ShippingStatus, BaseResponse,
+    ThirdPartyShippingRequest, ThirdPartyShippingResponse,
     UserAsset, AssetType, OrderItem
 )
-import sys
-import os
-sys.path.append(os.path.join(os.path.dirname(__file__), '../../../shared'))
-from utils import format_response
-
+from ..utils import format_response
 from ..database import get_db
 from ..services import ShippingService, UserAssetService
 
@@ -26,7 +21,7 @@ router = APIRouter()
 @router.post("/", response_model=BaseResponse, status_code=status.HTTP_201_CREATED)
 async def create_shipping(
     shipping_data: ShippingCreate,
-    order_items: Optional[List[OrderItem]] = None,
+    order_items: List[OrderItem] = [],
     user_id: Optional[str] = None,
     background_tasks: BackgroundTasks = BackgroundTasks(),
     db: AsyncSession = Depends(get_db)
