@@ -36,7 +36,7 @@ scikit-learn==1.3.2                 # 机器学习算法库
 chromadb==0.4.18                    # 向量数据库，用于存储和检索嵌入向量
 sentence-transformers==2.2.2        # 句子和文本嵌入生成库
 faiss-cpu==1.7.4                    # Facebook AI相似性搜索库（CPU版本）
-pymilvus==2.3.4                     # Milvus向量数据库Python SDK
+pymilvus==2.4.7                     # Milvus向量数据库Python SDK（升级版本以兼容grpcio）
 
 # 图数据库和网络分析
 neo4j==5.14.1                       # Neo4j图数据库驱动
@@ -47,5 +47,6 @@ jieba==0.42.1                       # 中文分词库
 spacy==3.7.2                        # 工业级自然语言处理库
 
 # RPC和序列化
-grpcio-tools==1.59.3                # gRPC工具和代码生成
+grpcio==1.60.0                      # gRPC核心库（固定兼容版本）
+grpcio-tools==1.60.0                # gRPC工具和代码生成（与grpcio版本保持一致）
 protobuf==4.25.1                    # Protocol Buffers序列化库

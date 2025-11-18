@@ -5,11 +5,13 @@ API网关主应用
 from fastapi import FastAPI, HTTPException, Depends, status, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from typing import Dict, Any
 import httpx
 
 from .config import config
 from .utils import setup_logging, format_response
 from .middleware import LoggingMiddleware
+from .routers import gateway, files, orders, payments, shipping
 
 # 初始化日志
 logger = setup_logging(config.log_level, config.log_format)
@@ -22,6 +24,13 @@ app = FastAPI(
     docs_url="/docs",
     redoc_url="/redoc"
 )
+
+# 注册路由
+app.include_router(gateway.router, prefix="/api/v1", tags=["认证"])
+app.include_router(files.router, tags=["文件管理"])
+app.include_router(orders.router, prefix="/api/v1", tags=["订单管理"])
+app.include_router(payments.router, prefix="/api/v1", tags=["支付管理"])
+app.include_router(shipping.router, prefix="/api/v1", tags=["发货管理"])
 
 # 添加CORS中间件
 app.add_middleware(
@@ -40,7 +49,7 @@ security = HTTPBearer()
 
 
 # 健康检查和基础路由将在下面定义
-async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
+async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)) -> Dict[str, Any]:
     """获取当前用户（JWT认证）"""
     # 暂时跳过JWT验证，返回模拟用户
     return {"user_id": "test", "username": "test_user"}
@@ -71,35 +80,8 @@ async def root():
     return format_response(message="欢迎使用百夫长智能管理系统API")
 
 
-# 服务代理路由
-@app.api_route("/api/v1/orders/{path:path}", methods=["GET", "POST", "PUT", "DELETE"])
-async def proxy_order_service(
-        request: Request,
-        path: str,
-        current_user: dict = Depends(get_current_user)
-):
-    """代理订单服务请求"""
-    return await proxy_request(request, config.order_service_url, f"/api/v1/orders/{path}")
-
-
-@app.api_route("/api/v1/payments/{path:path}", methods=["GET", "POST", "PUT", "DELETE"])
-async def proxy_payment_service(
-        request: Request,
-        path: str,
-        current_user: dict = Depends(get_current_user)
-):
-    """代理支付服务请求"""
-    return await proxy_request(request, config.payment_service_url, f"/api/v1/payments/{path}")
-
-
-@app.api_route("/api/v1/shipping/{path:path}", methods=["GET", "POST", "PUT", "DELETE"])
-async def proxy_shipping_service(
-        request: Request,
-        path: str,
-        current_user: dict = Depends(get_current_user)
-):
-    """代理发货服务请求"""
-    return await proxy_request(request, config.shipping_service_url, f"/api/v1/shipping/{path}")
+# 注意：原来的通配符代理路由已被具体的路由替换
+# 如果需要处理未定义的路由，可以保留一个通用的代理处理器
 
 
 async def proxy_request(request: Request, service_url: str, path: str):
